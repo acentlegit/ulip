@@ -1,0 +1,383 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ============ USER & ORGANIZATION MANAGEMENT ============
+model Organization {
+  id              String   @id @default(uuid())
+  name            String
+  domain          String?  @unique
+  subscriptionTier String @default("FREE") // FREE, BASIC, PRO, ENTERPRISE
+  stripeCustomerId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  users           User[]
+  cases           Case[]
+  clients         Client[]
+  documents       Document[]
+  tasks           Task[]
+  timeEntries     TimeEntry[]
+  invoices        Invoice[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id                String   @id @default(uuid())
+  email             String   @unique
+  password          String
+  name              String
+  // User Roles: SUPER_ADMIN, ORG_ADMIN, LAWYER, PARALEGAL, FINANCE, CLIENT
+  // See src/constants/roles.js for role definitions and helper functions
+  role              String   @default("ORG_ADMIN") // SUPER_ADMIN | ORG_ADMIN | LAWYER | PARALEGAL | FINANCE | CLIENT
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  phone             String?
+  twoFactorEnabled  Boolean  @default(false)
+  twoFactorSecret   String?
+  emailVerified     Boolean  @default(false)
+  lastLogin         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  cases             CaseMember[]
+  tasks             Task[]
+  timeEntries       TimeEntry[]
+  documents         Document[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  sentMessages      Message[] @relation("MessageSender")
+  receivedMessages  Message[] @relation("MessageReceiver")
+}
+
+// ============ CLIENT MANAGEMENT ============
+model Client {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  name              String
+  email             String?
+  phone             String?
+  address           String?
+  company           String?
+  type              String   // INDIVIDUAL, CORPORATE
+  status            String   @default("ACTIVE") // ACTIVE, INACTIVE, PROSPECT
+  notes             String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  cases             Case[]
+  documents         Document[]
+  invoices          Invoice[]
+  communications    Communication[]
+  conflictChecks    ConflictCheck[]
+}
+
+model ConflictCheck {
+  id                String   @id @default(uuid())
+  organizationId    String
+  clientId          String
+  client            Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  checkedBy         String
+  result            String   // CLEAR, CONFLICT, REVIEW
+  notes             String?
+  createdAt         DateTime @default(now())
+}
+
+// ============ CASE MANAGEMENT ============
+model Case {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  clientId          String
+  client            Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title             String
+  caseNumber        String?
+  description       String?
+  status            String   @default("OPEN") // OPEN, IN_PROGRESS, CLOSED, ON_HOLD
+  practiceArea      String?  // LITIGATION, CORPORATE, REAL_ESTATE, etc.
+  priority          String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  openedDate        DateTime @default(now())
+  closedDate        DateTime?
+  estimatedValue    Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  members           CaseMember[]
+  documents         Document[]
+  tasks             Task[]
+  notes             CaseNote[]
+  timeEntries       TimeEntry[]
+  invoices          Invoice[]
+  expenses          Expense[]
+  timeline          TimelineEvent[]
+  parties           Party[]
+  hearings          Hearing[]
+}
+
+model CaseMember {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role              String   // LEAD_ATTORNEY, ASSOCIATE, PARALEGAL
+  createdAt         DateTime @default(now())
+  
+  @@unique([caseId, userId])
+}
+
+model CaseNote {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  content           String
+  createdBy         String
+  isPrivate         Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model TimelineEvent {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title             String
+  description       String?
+  eventType         String   // FILING, HEARING, DEADLINE, NOTE, DOCUMENT
+  eventDate         DateTime
+  createdAt         DateTime @default(now())
+}
+
+model Party {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  name              String
+  type              String   // PLAINTIFF, DEFENDANT, WITNESS, THIRD_PARTY
+  role              String?
+  contactInfo       String?
+  createdAt         DateTime @default(now())
+}
+
+// ============ DOCUMENT MANAGEMENT ============
+model Document {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseId            String?
+  case              Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  clientId          String?
+  client            Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  uploadedBy        String
+  uploader          User @relation(fields: [uploadedBy], references: [id])
+  fileName          String
+  originalFileName  String
+  fileType          String
+  fileSize          Int      // bytes
+  s3Key             String
+  s3Bucket          String   @default("legal-documents")
+  mimeType          String
+  description       String?
+  tags              String?  // Comma-separated tags (SQLite doesn't support arrays)
+  isTemplate        Boolean  @default(false)
+  templateCategory  String?
+  version           Int      @default(1)
+  parentDocumentId  String?  // For versioning
+  accessLevel       String   @default("ORGANIZATION") // PRIVATE, CASE, CLIENT, ORGANIZATION
+  requiresSignature Boolean  @default(false)
+  signatureStatus   String?  // PENDING, SIGNED, DECLINED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  versions          Document[] @relation("DocumentVersions")
+  parentDocument    Document? @relation("DocumentVersions", fields: [parentDocumentId], references: [id])
+}
+
+// ============ TASK & WORKFLOW MANAGEMENT ============
+model Task {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseId            String?
+  case              Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  assignedTo        String?
+  assignee          User? @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  title             String
+  description       String?
+  status            String   @default("TODO") // TODO, IN_PROGRESS, COMPLETED, CANCELLED
+  priority          String   @default("MEDIUM") // LOW, MEDIUM, HIGH, URGENT
+  dueDate           DateTime?
+  completedAt       DateTime?
+  workflowStage     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============ CALENDAR & HEARINGS ============
+model Hearing {
+  id                String   @id @default(uuid())
+  caseId            String
+  case              Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  title             String
+  type              String   // HEARING, DEPOSITION, TRIAL, SETTLEMENT
+  date              DateTime
+  location          String?
+  court             String?
+  judge             String?
+  notes             String?
+  reminderSent      Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+// ============ TIME TRACKING & BILLING ============
+model TimeEntry {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseId            String?
+  case              Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  userId            String
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description       String
+  date              DateTime
+  hours             Float
+  billable          Boolean  @default(true)
+  rate              Float?
+  amount            Float?   // hours * rate
+  status            String   @default("DRAFT") // DRAFT, BILLED, WRITTEN_OFF
+  invoiceId         String?
+  invoice           Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Expense {
+  id                String   @id @default(uuid())
+  caseId            String?
+  case              Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  description       String
+  amount            Float
+  category          String?  // TRAVEL, COURT_FEES, RESEARCH, etc.
+  date              DateTime
+  receiptUrl        String?
+  billable          Boolean  @default(true)
+  invoiceId         String?
+  invoice           Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+}
+
+model Invoice {
+  id                String   @id @default(uuid())
+  organizationId    String
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  caseId            String?
+  case              Case? @relation(fields: [caseId], references: [id], onDelete: SetNull)
+  clientId          String
+  client            Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  invoiceNumber     String   @unique
+  status            String   @default("DRAFT") // DRAFT, SENT, PAID, OVERDUE, CANCELLED
+  issueDate         DateTime @default(now())
+  dueDate           DateTime
+  subtotal          Float
+  tax               Float    @default(0)
+  total             Float
+  notes             String?
+  stripePaymentId   String?
+  paidAt            DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  timeEntries       TimeEntry[]
+  expenses          Expense[]
+}
+
+// ============ COMMUNICATION ============
+model Communication {
+  id                String   @id @default(uuid())
+  organizationId    String
+  clientId          String
+  client            Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  type              String   // EMAIL, PHONE, MEETING, LETTER
+  subject           String?
+  content           String
+  direction         String   // INBOUND, OUTBOUND
+  relatedCaseId     String?
+  createdAt         DateTime @default(now())
+}
+
+model Message {
+  id                String   @id @default(uuid())
+  senderId          String
+  sender            User @relation("MessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId        String
+  receiver          User @relation("MessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content           String
+  read              Boolean  @default(false)
+  createdAt         DateTime @default(now())
+}
+
+model Notification {
+  id                String   @id @default(uuid())
+  userId            String
+  user              User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String   // TASK_ASSIGNED, DEADLINE, CASE_UPDATE, PAYMENT, etc.
+  title             String
+  message           String
+  link              String?
+  read              Boolean  @default(false)
+  createdAt         DateTime @default(now())
+}
+
+// ============ COMPLIANCE & AUDIT ============
+model AuditLog {
+  id                String   @id @default(uuid())
+  organizationId    String?
+  organization      Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId            String?
+  user              User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action            String   // CREATE, UPDATE, DELETE, VIEW, LOGIN, etc.
+  entityType        String   // CASE, CLIENT, DOCUMENT, INVOICE, etc.
+  entityId          String?
+  details           String?  // JSON string with change details
+  ipAddress         String?
+  userAgent         String?
+  createdAt         DateTime @default(now())
+  
+  @@index([organizationId, createdAt])
+  @@index([userId, createdAt])
+}
+
+// ============ KNOWLEDGE BASE ============
+model KnowledgeArticle {
+  id                String   @id @default(uuid())
+  organizationId    String?
+  title             String
+  content           String
+  category          String?  // PRECEDENT, TEMPLATE, GUIDE, POLICY
+  tags              String?  // Comma-separated tags
+  isPublic          Boolean  @default(false)
+  createdBy         String
+  views             Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Precedent {
+  id                String   @id @default(uuid())
+  organizationId    String?
+  title             String
+  description       String?
+  caseType          String?
+  practiceArea      String?
+  content           String
+  tags              String?  // Comma-separated tags
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
