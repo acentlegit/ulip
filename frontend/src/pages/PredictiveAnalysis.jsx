@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-
-// Use the same API URL pattern as Cases.jsx
-const API_BASE = "http://localhost:5000";
+import { API_BASE_URL, getApiUrl } from "../config/api";
 
 export default function PredictiveAnalysis() {
   const { token } = useAuth();
@@ -16,21 +15,113 @@ export default function PredictiveAnalysis() {
   const [riskScore, setRiskScore] = useState(null);
   const [activeTab, setActiveTab] = useState("predict");
   const [error, setError] = useState(null);
+  const [showFactorsModal, setShowFactorsModal] = useState(false);
+  const [caseFactors, setCaseFactors] = useState({
+    evidenceStrength: 0.7,
+    judgeHistory: 0.6,
+    similarCaseOutcomes: 0.65,
+    clientHistory: 0.7,
+    opposingCounselStrength: 0.5,
+    jurisdiction: "STATE",
+    notes: "",
+  });
+  const [savingFactors, setSavingFactors] = useState(false);
 
-  useEffect(() => {
-    if (token) {
-      fetchCases();
-    } else {
-      setLoadingCases(false);
+  const loadCaseFactors = useCallback(async (caseId) => {
+    if (!caseId || !token) return;
+    try {
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
+      const response = await axios.get(getApiUrl(`case-factors/${caseId}`), config);
+      if (response.data) {
+        setCaseFactors({
+          evidenceStrength: response.data.evidenceStrength ?? 0.7,
+          judgeHistory: response.data.judgeHistory ?? 0.6,
+          similarCaseOutcomes: response.data.similarCaseOutcomes ?? 0.65,
+          clientHistory: response.data.clientHistory ?? 0.7,
+          opposingCounselStrength: response.data.opposingCounselStrength ?? 0.5,
+          jurisdiction: response.data.jurisdiction ?? "STATE",
+          notes: response.data.notes ?? "",
+        });
+      }
+    } catch (error) {
+      console.error("Error loading case factors:", error);
+      // Use defaults if factors don't exist
     }
   }, [token]);
 
-  const fetchCases = async () => {
+  const saveCaseFactors = async () => {
+    if (!selectedCase) return;
+    
+    setSavingFactors(true);
+    try {
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
+      await axios.put(
+        getApiUrl(`case-factors/${selectedCase}`),
+        caseFactors,
+        config
+      );
+      setShowFactorsModal(false);
+      alert("Case factors saved successfully! Run prediction again to see updated results.");
+    } catch (error) {
+      console.error("Error saving case factors:", error);
+      alert("Failed to save case factors: " + (error.response?.data?.error || error.message));
+    } finally {
+      setSavingFactors(false);
+    }
+  };
+
+  const calculateClientHistory = async () => {
+    if (!selectedCase) return;
+    
+    try {
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
+      const response = await axios.get(
+        getApiUrl(`case-factors/${selectedCase}/calculate-client-history`),
+        config
+      );
+      
+      if (response.data.clientHistory !== undefined) {
+        setCaseFactors(prev => ({
+          ...prev,
+          clientHistory: response.data.clientHistory
+        }));
+        alert(`Client history calculated: ${(response.data.clientHistory * 100).toFixed(1)}% (from ${response.data.totalCases} past cases)`);
+      }
+    } catch (error) {
+      console.error("Error calculating client history:", error);
+      alert("Failed to calculate client history: " + (error.response?.data?.error || error.message));
+    }
+  };
+
+  const fetchCases = useCallback(async () => {
     setLoadingCases(true);
     setError(null);
     try {
-      console.log("Fetching cases from:", `${API_BASE}/api/predictive-analysis/cases`);
-      const response = await axios.get(`${API_BASE}/api/predictive-analysis/cases`);
+      console.log("Fetching cases from:", getApiUrl("predictive-analysis/cases"));
+      console.log("Token available:", !!token);
+      
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
+      const response = await axios.get(getApiUrl("predictive-analysis/cases"), config);
       console.log("API Response:", response);
       console.log("Cases data:", response.data);
       console.log("Cases count:", response.data?.length);
@@ -54,7 +145,15 @@ export default function PredictiveAnalysis() {
     } finally {
       setLoadingCases(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (token) {
+      fetchCases();
+    } else {
+      setLoadingCases(false);
+    }
+  }, [token, fetchCases]);
 
   const handlePredictOutcome = async () => {
     if (!selectedCase) {
@@ -66,9 +165,16 @@ export default function PredictiveAnalysis() {
     setError(null);
     setPrediction(null);
     try {
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
       const response = await axios.post(
-        `${API_BASE}/api/predictive-analysis/predict-outcome`,
-        { caseId: selectedCase }
+        getApiUrl("predictive-analysis/predict-outcome"),
+        { caseId: selectedCase },
+        config
       );
       setPrediction(response.data);
       setActiveTab("predict");
@@ -102,7 +208,15 @@ export default function PredictiveAnalysis() {
       
       // Add case type and priority if available
       if (caseData) {
-        requestData.caseType = caseData.type || "CIVIL";
+        // Map practiceArea to case type for analysis
+        const practiceArea = (caseData.practiceArea || "").toUpperCase();
+        let caseType = "CIVIL"; // Default
+        if (practiceArea.includes("CRIMINAL")) {
+          caseType = "CRIMINAL";
+        } else if (practiceArea.includes("FAMILY") || practiceArea.includes("DIVORCE") || practiceArea.includes("CUSTODY")) {
+          caseType = "FAMILY";
+        }
+        requestData.caseType = caseType;
         requestData.priority = caseData.priority || "MEDIUM";
       } else {
         // Default values if case not found in local state
@@ -110,9 +224,16 @@ export default function PredictiveAnalysis() {
         requestData.priority = "MEDIUM";
       }
 
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
       const response = await axios.post(
-        `${API_BASE}/api/predictive-analysis/generate-strategy`,
-        requestData
+        getApiUrl("predictive-analysis/generate-strategy"),
+        requestData,
+        config
       );
       setStrategy(response.data);
       setActiveTab("strategy");
@@ -138,9 +259,16 @@ export default function PredictiveAnalysis() {
     setError(null);
     setRiskScore(null);
     try {
+      const config = token ? {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      } : {};
+      
       const response = await axios.post(
-        `${API_BASE}/api/predictive-analysis/risk-score`,
-        { caseId: selectedCase }
+        getApiUrl("predictive-analysis/risk-score"),
+        { caseId: selectedCase },
+        config
       );
       setRiskScore(response.data);
       setActiveTab("risk");
@@ -190,34 +318,76 @@ export default function PredictiveAnalysis() {
 
       {/* Case Selection */}
       <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>Select Case</h2>
+        <div style={styles.sectionHeader}>
+          <h2 style={styles.sectionTitle}>Select Case</h2>
+          <button
+            onClick={fetchCases}
+            disabled={loadingCases}
+            style={{
+              ...styles.refreshButton,
+              ...(loadingCases && styles.refreshButtonDisabled)
+            }}
+            title="Refresh cases list"
+            onMouseEnter={(e) => {
+              if (!loadingCases) {
+                e.target.style.backgroundColor = "#5568d3";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loadingCases) {
+                e.target.style.backgroundColor = "#667eea";
+              }
+            }}
+          >
+            {loadingCases ? "⏳" : "🔄"} Refresh
+          </button>
+        </div>
         {loadingCases ? (
           <div style={styles.loadingText}>Loading cases...</div>
         ) : (
-          <select
-            value={selectedCase || ""}
-            onChange={(e) => {
-              setSelectedCase(e.target.value);
-              setPrediction(null);
-              setStrategy(null);
-              setRiskScore(null);
-            }}
-            style={styles.select}
-            disabled={cases.length === 0}
-          >
-            <option value="">
-              {cases.length === 0 ? "-- No cases available --" : "-- Select a case --"}
-            </option>
-            {cases.map((caseItem) => (
-              <option key={caseItem.id} value={caseItem.id}>
-                {caseItem.title} - {caseItem.type || "CIVIL"} ({caseItem.status || "ACTIVE"})
+          <>
+            <select
+              value={selectedCase || ""}
+              onChange={async (e) => {
+                setSelectedCase(e.target.value);
+                setPrediction(null);
+                setStrategy(null);
+                setRiskScore(null);
+                if (e.target.value) {
+                  await loadCaseFactors(e.target.value);
+                }
+              }}
+              style={styles.select}
+              disabled={cases.length === 0}
+            >
+              <option value="">
+                {cases.length === 0 ? "-- No cases available --" : "-- Select a case --"}
               </option>
-            ))}
-          </select>
+              {cases.map((caseItem) => (
+                <option key={caseItem.id} value={caseItem.id}>
+                  {caseItem.title} - {caseItem.practiceArea || "GENERAL"} ({caseItem.status || "OPEN"})
+                </option>
+              ))}
+            </select>
+            {cases.length === 0 && !error && (
+              <div style={styles.emptyState}>
+                <p style={styles.emptyText}>No cases found. Create a case to get started with predictive analysis.</p>
+                <Link to="/cases" style={styles.createCaseLink}>
+                  ➕ Create New Case
+                </Link>
+              </div>
+            )}
+          </>
         )}
         {error && (
           <div style={styles.errorMessage}>
             ⚠️ {error}
+            <button
+              onClick={fetchCases}
+              style={styles.retryButton}
+            >
+              Retry
+            </button>
           </div>
         )}
       </div>
@@ -255,6 +425,19 @@ export default function PredictiveAnalysis() {
           >
             ⚠️ Calculate Risk Score
           </button>
+          {selectedCase && (
+            <button
+              onClick={() => setShowFactorsModal(true)}
+              disabled={loading}
+              style={{
+                ...styles.actionButton,
+                backgroundColor: "#10b981",
+              }}
+              title="Edit case factors for more accurate predictions"
+            >
+              ⚙️ Edit Factors
+            </button>
+          )}
         </div>
       )}
 
@@ -511,6 +694,158 @@ export default function PredictiveAnalysis() {
         </div>
       )}
 
+      {/* Case Factors Modal */}
+      {showFactorsModal && (
+        <div style={styles.modalOverlay} onClick={() => setShowFactorsModal(false)}>
+          <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>⚙️ Edit Case Factors</h2>
+              <button
+                onClick={() => setShowFactorsModal(false)}
+                style={styles.modalCloseButton}
+              >
+                ×
+              </button>
+            </div>
+            
+            <div style={styles.modalBody}>
+              <p style={styles.modalDescription}>
+                Enter real data about this case to get more accurate predictions. 
+                Values range from 0.0 (weak/poor) to 1.0 (strong/excellent).
+              </p>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>
+                  Evidence Strength: {(caseFactors.evidenceStrength * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={caseFactors.evidenceStrength}
+                  onChange={(e) => setCaseFactors({...caseFactors, evidenceStrength: parseFloat(e.target.value)})}
+                  style={styles.rangeInput}
+                />
+                <div style={styles.factorHint}>Quality and strength of evidence supporting your case</div>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>
+                  Judge History: {(caseFactors.judgeHistory * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={caseFactors.judgeHistory}
+                  onChange={(e) => setCaseFactors({...caseFactors, judgeHistory: parseFloat(e.target.value)})}
+                  style={styles.rangeInput}
+                />
+                <div style={styles.factorHint}>Historical favorability of the assigned judge</div>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>
+                  Similar Case Outcomes: {(caseFactors.similarCaseOutcomes * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={caseFactors.similarCaseOutcomes}
+                  onChange={(e) => setCaseFactors({...caseFactors, similarCaseOutcomes: parseFloat(e.target.value)})}
+                  style={styles.rangeInput}
+                />
+                <div style={styles.factorHint}>Success rate of similar cases in your jurisdiction</div>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>
+                  Client History: {(caseFactors.clientHistory * 100).toFixed(0)}%
+                </label>
+                <div style={styles.factorRow}>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value={caseFactors.clientHistory}
+                    onChange={(e) => setCaseFactors({...caseFactors, clientHistory: parseFloat(e.target.value)})}
+                    style={{...styles.rangeInput, flex: 1}}
+                  />
+                  <button
+                    onClick={calculateClientHistory}
+                    style={styles.calculateButton}
+                    title="Calculate from past cases"
+                  >
+                    📊 Auto
+                  </button>
+                </div>
+                <div style={styles.factorHint}>Client's historical case success rate (click Auto to calculate from past cases)</div>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>
+                  Opposing Counsel Strength: {(caseFactors.opposingCounselStrength * 100).toFixed(0)}%
+                </label>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={caseFactors.opposingCounselStrength}
+                  onChange={(e) => setCaseFactors({...caseFactors, opposingCounselStrength: parseFloat(e.target.value)})}
+                  style={styles.rangeInput}
+                />
+                <div style={styles.factorHint}>Perceived strength and experience of opposing counsel</div>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>Jurisdiction</label>
+                <select
+                  value={caseFactors.jurisdiction}
+                  onChange={(e) => setCaseFactors({...caseFactors, jurisdiction: e.target.value})}
+                  style={styles.select}
+                >
+                  <option value="STATE">State Court</option>
+                  <option value="FEDERAL">Federal Court</option>
+                </select>
+              </div>
+
+              <div style={styles.factorGroup}>
+                <label style={styles.factorLabel}>Notes (optional)</label>
+                <textarea
+                  value={caseFactors.notes}
+                  onChange={(e) => setCaseFactors({...caseFactors, notes: e.target.value})}
+                  style={styles.textarea}
+                  placeholder="Add any additional notes about these factors..."
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button
+                onClick={() => setShowFactorsModal(false)}
+                style={styles.modalCancelButton}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveCaseFactors}
+                disabled={savingFactors}
+                style={styles.modalSaveButton}
+              >
+                {savingFactors ? "Saving..." : "💾 Save Factors"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -542,11 +877,70 @@ const styles = {
     marginBottom: "20px",
     boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
   },
+  sectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "15px",
+  },
   sectionTitle: {
     fontSize: "18px",
     fontWeight: "600",
-    margin: "0 0 15px 0",
+    margin: 0,
     color: "#333",
+  },
+  refreshButton: {
+    padding: "6px 12px",
+    fontSize: "14px",
+    fontWeight: "500",
+    backgroundColor: "#667eea",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    transition: "all 0.2s",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+  refreshButtonDisabled: {
+    opacity: 0.6,
+    cursor: "not-allowed",
+    backgroundColor: "#9ca3af",
+  },
+  retryButton: {
+    marginLeft: "10px",
+    padding: "4px 12px",
+    fontSize: "12px",
+    backgroundColor: "#667eea",
+    color: "white",
+    border: "none",
+    borderRadius: "4px",
+    cursor: "pointer",
+  },
+  emptyState: {
+    marginTop: "15px",
+    padding: "20px",
+    textAlign: "center",
+    background: "#f9fafb",
+    borderRadius: "6px",
+    border: "1px solid #e5e7eb",
+  },
+  emptyText: {
+    margin: "0 0 15px 0",
+    color: "#666",
+    fontSize: "14px",
+  },
+  createCaseLink: {
+    display: "inline-block",
+    padding: "10px 20px",
+    backgroundColor: "#667eea",
+    color: "white",
+    textDecoration: "none",
+    borderRadius: "6px",
+    fontWeight: "600",
+    fontSize: "14px",
+    transition: "all 0.2s",
   },
   select: {
     width: "100%",
@@ -837,5 +1231,135 @@ const styles = {
     borderRadius: "6px",
     border: "1px solid #fecaca",
     fontSize: "14px",
+  },
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    padding: "20px",
+  },
+  modalContent: {
+    background: "white",
+    borderRadius: "12px",
+    maxWidth: "600px",
+    width: "100%",
+    maxHeight: "90vh",
+    overflow: "auto",
+    boxShadow: "0 10px 40px rgba(0,0,0,0.2)",
+  },
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "20px",
+    borderBottom: "1px solid #e5e7eb",
+  },
+  modalTitle: {
+    fontSize: "24px",
+    fontWeight: "bold",
+    margin: 0,
+    color: "#1a1a2e",
+  },
+  modalCloseButton: {
+    background: "none",
+    border: "none",
+    fontSize: "32px",
+    color: "#666",
+    cursor: "pointer",
+    padding: 0,
+    width: "32px",
+    height: "32px",
+    lineHeight: "32px",
+  },
+  modalBody: {
+    padding: "20px",
+  },
+  modalDescription: {
+    fontSize: "14px",
+    color: "#666",
+    marginBottom: "20px",
+    lineHeight: "1.6",
+  },
+  factorGroup: {
+    marginBottom: "20px",
+  },
+  factorLabel: {
+    display: "block",
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: "8px",
+  },
+  factorRow: {
+    display: "flex",
+    gap: "10px",
+    alignItems: "center",
+  },
+  rangeInput: {
+    width: "100%",
+    height: "8px",
+    borderRadius: "4px",
+    background: "#e5e7eb",
+    outline: "none",
+    cursor: "pointer",
+  },
+  factorHint: {
+    fontSize: "12px",
+    color: "#666",
+    marginTop: "4px",
+    fontStyle: "italic",
+  },
+  calculateButton: {
+    padding: "6px 12px",
+    fontSize: "12px",
+    backgroundColor: "#667eea",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+  },
+  textarea: {
+    width: "100%",
+    padding: "10px",
+    border: "1px solid #ddd",
+    borderRadius: "6px",
+    fontSize: "14px",
+    fontFamily: "inherit",
+    resize: "vertical",
+  },
+  modalFooter: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "10px",
+    padding: "20px",
+    borderTop: "1px solid #e5e7eb",
+  },
+  modalCancelButton: {
+    padding: "10px 20px",
+    fontSize: "14px",
+    fontWeight: "500",
+    backgroundColor: "#f3f4f6",
+    color: "#333",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+  modalSaveButton: {
+    padding: "10px 20px",
+    fontSize: "14px",
+    fontWeight: "600",
+    backgroundColor: "#667eea",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
   },
 };

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function ClientDetail() {
   const { id } = useParams();
   const [client, setClient] = useState(null);
@@ -13,7 +14,7 @@ export default function ClientDetail() {
 
   const fetchClient = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/clients/${id}`);
+      const res = await axios.get(getApiUrl("clients/${id}"));
       setClient(res.data);
     } catch (error) {
       console.error("Failed to fetch client:", error);

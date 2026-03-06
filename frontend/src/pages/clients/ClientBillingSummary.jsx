@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function ClientBillingSummary() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -16,10 +17,10 @@ export default function ClientBillingSummary() {
 
   const fetchData = async () => {
     try {
-      const clientRes = await axios.get(`http://localhost:5000/api/clients/${id}`);
+      const clientRes = await axios.get(getApiUrl("clients/${id}"));
       setClient(clientRes.data);
       
-      const invoicesRes = await axios.get(`http://localhost:5000/api/invoices`);
+      const invoicesRes = await axios.get(getApiUrl("invoices"));
       const clientInvoices = invoicesRes.data.filter(inv => inv.clientId === id);
       setInvoices(clientInvoices);
     } catch (error) {

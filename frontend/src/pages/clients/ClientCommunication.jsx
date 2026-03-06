@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function ClientCommunication() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function ClientCommunication() {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/clients/${id}`);
+      const res = await axios.get(getApiUrl("clients/${id}"));
       setClient(res.data);
       setCommunications(res.data.communications || []);
     } catch (error) {

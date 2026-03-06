@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function AdminDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -23,7 +24,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/dashboard");
+      const res = await axios.get(getApiUrl("dashboard"));
       // Map the response data to match the expected stats structure
       setStats({
         totalUsers: res.data.totalUsers || 0,

@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function ConflictCheck() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export default function ConflictCheck() {
 
   const fetchData = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/clients/${id}`);
+      const res = await axios.get(getApiUrl("clients/${id}"));
       setClient(res.data);
       setConflictChecks(res.data.conflictChecks || []);
     } catch (error) {
@@ -36,7 +37,7 @@ export default function ConflictCheck() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/clients/${id}/conflict-check`, formData);
+      await axios.post(getApiUrl("clients/${id}/conflict-check"), formData);
       setShowForm(false);
       setFormData({ result: "CLEAR", notes: "" });
       fetchData();

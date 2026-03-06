@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function Cases() {
   const [cases, setCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -32,7 +33,7 @@ export default function Cases() {
       if (statusFilter) params.status = statusFilter;
       if (search) params.search = search;
       
-      const res = await axios.get("http://localhost:5000/api/cases", { params });
+      const res = await axios.get(getApiUrl("cases"), { params });
       setCases(res.data);
     } catch (error) {
       console.error("Failed to fetch cases:", error);
@@ -43,7 +44,7 @@ export default function Cases() {
 
   const fetchClients = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/clients");
+      const res = await axios.get(getApiUrl("clients"));
       setClients(res.data);
     } catch (error) {
       console.error("Failed to fetch clients:", error);
@@ -79,7 +80,7 @@ export default function Cases() {
 
     setSubmitting(true);
     try {
-      const res = await axios.post("http://localhost:5000/api/cases", formData);
+      const res = await axios.post(getApiUrl("cases"), formData);
       setShowModal(false);
       setFormData({
         title: "",

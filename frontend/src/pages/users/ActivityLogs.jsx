@@ -3,6 +3,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { formatRole } from "../../constants/roles";
 
+import { getApiUrl } from "../../config/api";
 export default function ActivityLogs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,7 +20,7 @@ export default function ActivityLogs() {
 
   const fetchLogs = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/audit-logs", { params: filters });
+      const res = await axios.get(getApiUrl("audit-logs"), { params: filters });
       setLogs(res.data);
     } catch (error) {
       console.error("Failed to fetch logs:", error);

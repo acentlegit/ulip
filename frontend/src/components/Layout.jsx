@@ -142,7 +142,7 @@ const styles = {
   navItemActive: {
     background: "#2a2a3e",
     color: "#667eea",
-    borderLeftColor: "#667eea"
+    borderLeft: "3px solid #667eea"
   },
   navIcon: {
     fontSize: "20px",

@@ -5,6 +5,7 @@ import { theme } from "../../styles/theme";
 import { UserRoles, getAllRoles, getRoleDisplayName, isAdminRole } from "../../constants/roles";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function EditUser() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function EditUser() {
 
   const fetchUser = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/users/${id}`);
+      const res = await axios.get(getApiUrl("users/${id}"));
       setFormData({
         name: res.data.name,
         email: res.data.email,
@@ -45,7 +46,7 @@ export default function EditUser() {
     setSaving(true);
 
     try {
-      await axios.put(`http://localhost:5000/api/users/${id}`, formData);
+      await axios.put(getApiUrl("users/${id}"), formData);
       navigate("/users");
     } catch (err) {
       setError(err.response?.data?.error || "Failed to update user");

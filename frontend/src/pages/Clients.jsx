@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function Clients() {
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ export default function Clients() {
     try {
       setLoading(true);
       const params = search ? { search } : {};
-      const res = await axios.get("http://localhost:5000/api/clients", { params });
+      const res = await axios.get(getApiUrl("clients"), { params });
       setClients(res.data);
     } catch (error) {
       console.error("Failed to fetch clients:", error);
@@ -59,7 +60,7 @@ export default function Clients() {
 
     setSubmitting(true);
     try {
-      await axios.post("http://localhost:5000/api/clients", formData);
+      await axios.post(getApiUrl("clients"), formData);
       setShowModal(false);
       setFormData({
         name: "",

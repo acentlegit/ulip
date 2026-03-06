@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { theme } from "../styles/theme";
 import { UserRoles, RoleDisplayNames } from "../constants/roles";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -70,7 +71,7 @@ export default function Register() {
       // Pass role in the SSO request so backend can use it when creating account
       // Redirect directly to backend SSO endpoint with role parameter
       // Backend will redirect to Google/Microsoft/Okta login page
-      window.location.href = `http://localhost:5000/api/auth/sso/${provider}?role=${encodeURIComponent(formData.role)}`;
+      window.location.href = `${API_BASE_URL}/api/auth/sso/${provider}?role=${encodeURIComponent(formData.role)}`;
     } catch (err) {
       console.error("SSO error:", err);
       setError(`SSO registration with ${provider} failed. Please use email registration.`);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function Documents() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +12,7 @@ export default function Documents() {
 
   const fetchDocuments = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/documents");
+      const res = await axios.get(getApiUrl("documents"));
       setDocuments(res.data);
     } catch (error) {
       console.error("Failed to fetch documents:", error);

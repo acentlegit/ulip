@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function SubscriptionManagement() {
   const { user } = useAuth();
   const [subscription, setSubscription] = useState(null);
@@ -15,7 +16,7 @@ export default function SubscriptionManagement() {
 
   const fetchSubscription = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/auth/me");
+      const res = await axios.get(getApiUrl("auth/me"));
       if (res.data.user?.organization) {
         setSubscription(res.data.user.organization);
       }

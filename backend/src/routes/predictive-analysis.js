@@ -6,6 +6,15 @@ const { UserRoles } = require("../constants/roles");
 
 const prisma = new PrismaClient();
 
+// Helper function to map practiceArea to case type for analysis
+const mapPracticeAreaToCaseType = (practiceArea) => {
+  if (!practiceArea) return "CIVIL";
+  const upperArea = practiceArea.toUpperCase();
+  if (upperArea.includes("CRIMINAL")) return "CRIMINAL";
+  if (upperArea.includes("FAMILY") || upperArea.includes("DIVORCE") || upperArea.includes("CUSTODY")) return "FAMILY";
+  return "CIVIL"; // Default to CIVIL for all other practice areas
+};
+
 // All routes require authentication and organization
 router.use(authenticate);
 router.use(requireOrganization);
@@ -39,15 +48,26 @@ router.post("/predict-outcome", async (req, res) => {
     }
 
     // Extract factors from case or use provided factors
+    const caseType = caseData?.practiceArea ? mapPracticeAreaToCaseType(caseData.practiceArea) : "CIVIL";
+    
+    // Try to get real factors from database
+    let savedFactors = null;
+    if (caseId) {
+      savedFactors = await prisma.caseFactors.findUnique({
+        where: { caseId },
+      });
+    }
+
+    // Use saved factors if available, otherwise use provided factors or defaults
     const caseFactors = factors || {
-      caseType: caseData?.type || "CIVIL",
+      caseType: caseType,
       priority: caseData?.priority || "MEDIUM",
-      evidenceStrength: 0.7,
-      judgeHistory: 0.6,
-      similarCaseOutcomes: 0.65,
-      clientHistory: 0.7,
-      opposingCounselStrength: 0.5,
-      jurisdiction: caseData?.jurisdiction || "STATE",
+      evidenceStrength: savedFactors?.evidenceStrength ?? 0.7,
+      judgeHistory: savedFactors?.judgeHistory ?? 0.6,
+      similarCaseOutcomes: savedFactors?.similarCaseOutcomes ?? 0.65,
+      clientHistory: savedFactors?.clientHistory ?? 0.7,
+      opposingCounselStrength: savedFactors?.opposingCounselStrength ?? 0.5,
+      jurisdiction: savedFactors?.jurisdiction ?? "STATE",
     };
 
     // Predictive Algorithm (Enhanced from LEXNOVA)
@@ -70,9 +90,9 @@ router.post("/predict-outcome", async (req, res) => {
       (caseFactors.jurisdiction === "FEDERAL" ? 0.6 : 0.7) * weights.jurisdiction;
 
     // Adjust based on case type
-    if (caseData?.type === "CRIMINAL") {
+    if (caseType === "CRIMINAL") {
       winProbability *= 0.85; // Lower probability for criminal cases
-    } else if (caseData?.type === "FAMILY") {
+    } else if (caseType === "FAMILY") {
       winProbability *= 0.9;
     }
 
@@ -148,7 +168,7 @@ router.post("/generate-strategy", async (req, res) => {
     }
 
     // Use provided values or case data or defaults
-    const caseType = providedCaseType || caseData?.type || "CIVIL";
+    const caseType = providedCaseType || (caseData?.practiceArea ? mapPracticeAreaToCaseType(caseData.practiceArea) : "CIVIL");
     const priority = providedPriority || caseData?.priority || "MEDIUM";
 
     const strategies = {
@@ -347,7 +367,7 @@ router.get("/cases", async (req, res) => {
       select: {
         id: true,
         title: true,
-        type: true,
+        practiceArea: true,
         status: true,
         priority: true,
         estimatedValue: true,

@@ -3,6 +3,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { UserRoles, getAllRoles, getRoleDisplayName, getRoleDescription } from "../../constants/roles";
 
+import { getApiUrl } from "../../config/api";
 export default function RoleManagement() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +16,7 @@ export default function RoleManagement() {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users");
+      const res = await axios.get(getApiUrl("users"));
       setUsers(res.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);
@@ -26,7 +27,7 @@ export default function RoleManagement() {
 
   const handleRoleChange = async (userId, role) => {
     try {
-      await axios.put(`http://localhost:5000/api/users/${userId}`, { role });
+      await axios.put(getApiUrl("users/${userId}"), { role });
       fetchUsers();
       setSelectedUser(null);
     } catch (error) {

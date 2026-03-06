@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function TimeTracking() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,7 +12,7 @@ export default function TimeTracking() {
 
   const fetchEntries = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/time-tracking");
+      const res = await axios.get(getApiUrl("time-tracking"));
       setEntries(res.data);
     } catch (error) {
       console.error("Failed to fetch entries:", error);

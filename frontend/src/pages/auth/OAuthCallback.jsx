@@ -4,6 +4,7 @@ import { useAuth } from "../../context/AuthContext";
 import { theme } from "../../styles/theme";
 import axios from "axios";
 
+import { getApiUrl } from "../../config/api";
 export default function OAuthCallback() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -61,7 +62,7 @@ export default function OAuthCallback() {
       axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
       
       // Fetch user data with token
-      const response = await axios.get("http://localhost:5000/api/auth/me");
+      const response = await axios.get(getApiUrl("auth/me"));
       
       if (response.data && response.data.user) {
         // Update auth context with token and user

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function UploadDocument() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -36,7 +37,7 @@ export default function UploadDocument() {
         if (formData[key]) uploadData.append(key, formData[key]);
       });
 
-      await axios.post("http://localhost:5000/api/documents/upload", uploadData);
+      await axios.post(getApiUrl("documents/upload"), uploadData);
       navigate("/documents");
     } catch (err) {
       setError(err.response?.data?.error || "Failed to upload document");

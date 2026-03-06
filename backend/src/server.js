@@ -1,15 +1,21 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
+
+// Set default DATABASE_URL if not provided
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = `file:${path.join(__dirname, "../prisma/dev.db")}`;
+}
+
+// Initialize Prisma client
+const { PrismaClient } = require("@prisma/client");
+const prisma = new PrismaClient();
 
 // Test Prisma connection on startup
-const { PrismaClient } = require("@prisma/client");
-const testPrisma = new PrismaClient();
-
-testPrisma.$connect()
+prisma.$connect()
   .then(() => {
     console.log("✓ Database connection established");
-    return testPrisma.$disconnect();
   })
   .catch((error) => {
     console.error("✗ Database connection failed:", error.message);
@@ -28,6 +34,7 @@ const userRoutes = require("./routes/users");
 const dashboardRoutes = require("./routes/dashboard");
 const organizationRoutes = require("./routes/organizations");
 const predictiveAnalysisRoutes = require("./routes/predictive-analysis");
+const caseFactorsRoutes = require("./routes/case-factors");
 
 const app = express();
 app.use(cors());
@@ -46,12 +53,13 @@ app.use("/api/calendar", calendarRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/organizations", organizationRoutes);
 app.use("/api/predictive-analysis", predictiveAnalysisRoutes);
+app.use("/api/case-factors", caseFactorsRoutes);
 
 // Health check
 app.get("/health", async (req, res) => {
   try {
     // Test database connection
-    await testPrisma.$queryRaw`SELECT 1`;
+    await prisma.$queryRaw`SELECT 1`;
     res.json({ 
       status: "ok", 
       timestamp: new Date().toISOString(),

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function CaseTimeline() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function CaseTimeline() {
 
   const fetchTimeline = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/cases/${id}`);
+      const res = await axios.get(getApiUrl("cases/${id}"));
       setTimeline(res.data.timeline || []);
     } catch (error) {
       console.error("Failed to fetch timeline:", error);
@@ -34,7 +35,7 @@ export default function CaseTimeline() {
   const handleAddEvent = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/cases/${id}/timeline`, formData);
+      await axios.post(getApiUrl("cases/${id}/timeline"), formData);
       setShowAddForm(false);
       setFormData({ title: "", description: "", eventType: "NOTE", eventDate: new Date().toISOString().split("T")[0] });
       fetchTimeline();

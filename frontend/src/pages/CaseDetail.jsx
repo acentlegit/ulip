@@ -4,6 +4,7 @@ import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { isAdminRole } from "../constants/roles";
 
+import { getApiUrl } from "../config/api";
 export default function CaseDetail() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -20,7 +21,7 @@ export default function CaseDetail() {
 
   const fetchCase = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/cases/${id}`);
+      const res = await axios.get(getApiUrl("cases/${id}"));
       setCase(res.data);
     } catch (error) {
       console.error("Failed to fetch case:", error);
@@ -36,7 +37,7 @@ export default function CaseDetail() {
 
     setDeleting(true);
     try {
-      await axios.delete(`http://localhost:5000/api/cases/${id}`);
+      await axios.delete(getApiUrl("cases/${id}"));
       navigate("/cases");
     } catch (error) {
       console.error("Failed to delete case:", error);

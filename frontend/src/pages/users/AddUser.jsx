@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { UserRoles, getAllRoles, getRoleDisplayName } from "../../constants/roles";
 
+import { getApiUrl } from "../../config/api";
 export default function AddUser() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -22,7 +23,7 @@ export default function AddUser() {
     setLoading(true);
 
     try {
-      await axios.post("http://localhost:5000/api/users", formData);
+      await axios.post(getApiUrl("users"), formData);
       navigate("/users");
     } catch (err) {
       setError(err.response?.data?.error || "Failed to create user");

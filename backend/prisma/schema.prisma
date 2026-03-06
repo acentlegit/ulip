@@ -118,6 +118,7 @@ model Case {
   timeline          TimelineEvent[]
   parties           Party[]
   hearings          Hearing[]
+  factors           CaseFactors?
 }
 
 model CaseMember {
@@ -130,6 +131,22 @@ model CaseMember {
   createdAt         DateTime @default(now())
   
   @@unique([caseId, userId])
+}
+
+model CaseFactors {
+  id                    String   @id @default(uuid())
+  caseId                String   @unique
+  case                  Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  evidenceStrength      Float    @default(0.7) // 0.0 to 1.0
+  judgeHistory          Float    @default(0.6) // 0.0 to 1.0
+  similarCaseOutcomes   Float    @default(0.65) // 0.0 to 1.0
+  clientHistory         Float    @default(0.7) // 0.0 to 1.0
+  opposingCounselStrength Float  @default(0.5) // 0.0 to 1.0
+  jurisdiction          String   @default("STATE") // STATE, FEDERAL
+  notes                 String?
+  updatedBy             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
 
 model CaseNote {

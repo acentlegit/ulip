@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { theme } from "../../styles/theme";
 import axios from "axios";
 
+import { getApiUrl } from "../../config/api";
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,7 +17,7 @@ export default function ForgotPassword() {
     setLoading(true);
 
     try {
-      await axios.post("http://localhost:5000/api/auth/forgot-password", { email });
+      await axios.post(getApiUrl("auth/forgot-password"), { email });
       setMessage("If an account exists, a password reset email has been sent.");
     } catch (err) {
       setError(err.response?.data?.error || "Failed to send reset email");

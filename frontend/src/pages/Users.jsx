@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { formatRole } from "../constants/roles";
 
+import { getApiUrl } from "../config/api";
 export default function Users() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,7 +14,7 @@ export default function Users() {
 
   const fetchUsers = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/users");
+      const res = await axios.get(getApiUrl("users"));
       setUsers(res.data);
     } catch (error) {
       console.error("Failed to fetch users:", error);

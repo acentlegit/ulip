@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function CaseParties() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function CaseParties() {
 
   const fetchParties = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/cases/${id}`);
+      const res = await axios.get(getApiUrl("cases/${id}"));
       setParties(res.data.parties || []);
     } catch (error) {
       console.error("Failed to fetch parties:", error);
@@ -34,7 +35,7 @@ export default function CaseParties() {
   const handleAddParty = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/cases/${id}/parties`, formData);
+      await axios.post(getApiUrl("cases/${id}/parties"), formData);
       setShowAddForm(false);
       setFormData({ name: "", type: "PLAINTIFF", role: "", contactInfo: "" });
       fetchParties();

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "axios";
 
+import { getApiUrl } from "../config/api";
 export default function InvoiceDetail() {
   const { id } = useParams();
   const [invoice, setInvoice] = useState(null);
@@ -13,7 +14,7 @@ export default function InvoiceDetail() {
 
   const fetchInvoice = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/invoices/${id}`);
+      const res = await axios.get(getApiUrl("invoices/${id}"));
       setInvoice(res.data);
     } catch (error) {
       console.error("Failed to fetch invoice:", error);

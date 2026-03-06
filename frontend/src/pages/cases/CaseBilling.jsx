@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { theme } from "../../styles/theme";
 
+import { getApiUrl } from "../../config/api";
 export default function CaseBilling() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function CaseBilling() {
 
   const fetchBilling = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/cases/${id}`);
+      const res = await axios.get(getApiUrl("cases/${id}"));
       setBilling({
         timeEntries: res.data.timeEntries || [],
         expenses: res.data.expenses || [],

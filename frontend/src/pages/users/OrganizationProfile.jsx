@@ -4,6 +4,7 @@ import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 import { isAdminRole } from "../../constants/roles";
 
+import { getApiUrl } from "../../config/api";
 export default function OrganizationProfile() {
   const { user } = useAuth();
   const [org, setOrg] = useState(null);
@@ -28,7 +29,7 @@ export default function OrganizationProfile() {
 
   const fetchOrganization = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/organizations");
+      const res = await axios.get(getApiUrl("organizations"));
       setOrg(res.data);
       setFormData({
         name: res.data.name,
@@ -45,7 +46,7 @@ export default function OrganizationProfile() {
 
   const fetchStats = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/organizations/stats");
+      const res = await axios.get(getApiUrl("organizations/stats"));
       setStats(res.data);
     } catch (error) {
       console.error("Failed to fetch organization stats:", error);
@@ -63,7 +64,7 @@ export default function OrganizationProfile() {
     setSuccess("");
 
     try {
-      const res = await axios.put("http://localhost:5000/api/organizations", {
+      const res = await axios.put(getApiUrl("organizations"), {
         name: formData.name,
         domain: formData.domain || null,
         subscriptionTier: formData.subscriptionTier

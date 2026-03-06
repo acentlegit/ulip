@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext";
 import { theme } from "../styles/theme";
 import { UserRoles, RoleDisplayNames } from "../constants/roles";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -54,7 +55,7 @@ export default function Login() {
       // Backend will redirect to Google/Microsoft/Okta login page
       // After user authenticates, provider redirects back to backend callback
       // Backend processes and redirects to frontend with token
-      window.location.href = `http://localhost:5000/api/auth/sso/${provider}?role=${encodeURIComponent(role)}`;
+      window.location.href = `${API_BASE_URL}/api/auth/sso/${provider}?role=${encodeURIComponent(role)}`;
     } catch (err) {
       console.error("SSO error:", err);
       setError(`SSO authentication with ${provider} failed. Please use email/password login.`);

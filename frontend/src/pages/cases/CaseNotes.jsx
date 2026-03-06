@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function CaseNotes() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function CaseNotes() {
 
   const fetchNotes = async () => {
     try {
-      const res = await axios.get(`http://localhost:5000/api/cases/${id}`);
+      const res = await axios.get(getApiUrl("cases/${id}"));
       setNotes(res.data.notes || []);
     } catch (error) {
       console.error("Failed to fetch notes:", error);
@@ -34,7 +35,7 @@ export default function CaseNotes() {
   const handleAddNote = async (e) => {
     e.preventDefault();
     try {
-      await axios.post(`http://localhost:5000/api/cases/${id}/notes`, formData);
+      await axios.post(getApiUrl("cases/${id}/notes"), formData);
       setShowAddForm(false);
       setFormData({ content: "", isPrivate: false });
       fetchNotes();

@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { useAuth } from "../../context/AuthContext";
 
+import { getApiUrl } from "../../config/api";
 export default function ParalegalDashboard() {
   const { user } = useAuth();
   const [stats, setStats] = useState({
@@ -19,7 +20,7 @@ export default function ParalegalDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/dashboard");
+      const res = await axios.get(getApiUrl("dashboard"));
       setStats(res.data);
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);

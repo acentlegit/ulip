@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { theme } from "../../styles/theme";
 import axios from "axios";
 
+import { getApiUrl } from "../../config/api";
 export default function EmailVerification() {
   const { token } = useParams();
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ export default function EmailVerification() {
 
   const verifyEmail = async (verificationToken) => {
     try {
-      const res = await axios.post("http://localhost:5000/api/auth/verify-email", {
+      const res = await axios.post(getApiUrl("auth/verify-email"), {
         token: verificationToken
       });
       setStatus("success");

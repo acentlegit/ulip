@@ -4,6 +4,7 @@ import axios from "axios";
 import { theme } from "../../styles/theme";
 import { formatRole } from "../../constants/roles";
 
+import { getApiUrl } from "../../config/api";
 export default function TeamManagement() {
   const [teams, setTeams] = useState([]);
   const [users, setUsers] = useState([]);
@@ -15,7 +16,7 @@ export default function TeamManagement() {
 
   const fetchData = async () => {
     try {
-      const usersRes = await axios.get("http://localhost:5000/api/users");
+      const usersRes = await axios.get(getApiUrl("users"));
       setUsers(usersRes.data);
       // Group users by role for team view
       const grouped = groupByRole(usersRes.data);
